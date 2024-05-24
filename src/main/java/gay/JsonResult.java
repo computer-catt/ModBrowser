@@ -1,4 +1,5 @@
-﻿package gay;public class JsonResult {
-    String status;
-    public int code;
+package gay; 
+
+public class JsonResult {
+    public hit[] hits;
 }

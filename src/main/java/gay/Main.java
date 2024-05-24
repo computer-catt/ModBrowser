@@ -1,14 +1,11 @@
 package gay;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
 import java.util.Scanner;
-import gay.JsonResult;
+import com.google.gson.Gson;
 
 public class Main {
     public static void main(String[] args) throws IOException {
@@ -27,6 +24,8 @@ public class Main {
         System.out.println(line);
         
         
-        
+        JsonResult result  = new Gson().fromJson(line, JsonResult.class);
+        for (hit hity : result.hits)
+            System.out.println(hity.title + "   " + hity.author);
     }
 }
