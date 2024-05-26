@@ -6,13 +6,15 @@ import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 import com.google.gson.Gson;
 import java.util.zip.ZipFile;
+import org.fusesource.jansi.AnsiConsole;
+import static org.fusesource.jansi.Ansi.*;
 
 public class Main {
     public static void clearScreen() {
-        for (int i = 0; i < 50; i++) {
-            System.out.println();
-        }
+        System.out.print(ansi().eraseScreen().cursor(0, 0));
+        System.out.flush();
     }
+
 
     public static String padString(String str, int length) {
         if (str.length() >= length)
@@ -25,14 +27,13 @@ public class Main {
         return sb.toString();
     }
 
-
-
     public static void main(String[] args) throws IOException {
+        AnsiConsole.systemInstall();
         Scanner scanner = new Scanner(System.in);
 
         String jarLocation;
         while (true) {
-            clearScreen();
+            //clearScreen();
             System.out.println("Server jar location:");
             jarLocation = scanner.nextLine().trim();
 
@@ -59,7 +60,7 @@ public class Main {
             case "net.fabricmc.installer.ServerLauncher" -> "fabric";
             case "io.papermc.paperclip.Main" -> "paper";
             case "net.minecraftforge.bootstrap.shim.Main" -> "forge";
-            default -> "Could Not Find Mod Loader\nPlease use Purpur/Fabric/Forge";
+            default -> "Could Not Find Mod Loader\nPlease use purpur/Fabric/Forge";
         };
         System.out.println("ModLoader: " + modLoader);
 
@@ -86,28 +87,35 @@ public class Main {
             }
         }
         System.out.println("version: " + version);
-
-
+        
         //Mod Downloading portion
-        //noinspection InfiniteLoopStatement
-        while (true) {
-            System.out.println("What mod are you looking for?:");
-
-            URLConnection connection = new URL("https://api.modrinth.com/v2/search?limit=20&query=" + scanner.nextLine() +
-                    "&facets=" + URLEncoder.encode("[[\"categories:" + modLoader + "\"],[\"versions:" + version + "\"]]", StandardCharsets.UTF_8))
-                    .openConnection();
-            connection.setRequestProperty("Accept-Charset", "UTF-8");
-            InputStream response = connection.getInputStream();
-            String responsetext = new String(response.readAllBytes(), StandardCharsets.UTF_8);
-            response.close();
-            SearchResult result = new Gson().fromJson(responsetext, SearchResult.class);
-
-            int ModWidth = 25;
-            System.out.println();
-            System.out.println("Found " + result.total_hits + " results");
-            for (Hit hit : result.hits) {
-                System.out.println(padString(hit.title, ModWidth) + "by " + hit.author);
-            }
+        System.out.println("What mod are you looking for?:");
+        String searchquery = scanner.nextLine().trim();
+        URLConnection connection = new URL("https://api.modrinth.com/v2/search?limit=20&query=" +  searchquery+
+                "&facets=" + URLEncoder.encode("[[\"categories:" + modLoader + "\"],[\"versions:" + version + "\"]]", StandardCharsets.UTF_8))
+                .openConnection();
+        connection.setRequestProperty("Accept-Charset", "UTF-8");
+        InputStream response = connection.getInputStream();
+        String responseText = new String(response.readAllBytes(), StandardCharsets.UTF_8);
+        response.close();
+        SearchResult result = new Gson().fromJson(responseText, SearchResult.class);
+        
+        clearScreen();
+        String beginText = modLoader + "  :  " + version + "\n" + "Search query: " + searchquery;
+        System.out.println(beginText);
+        int ModWidth = 35;
+        System.out.println();
+        System.out.println(ansi().fgBlack().bg(Color.WHITE).a("Found " + result.total_hits + " results").reset());
+        for (Hit hit : result.hits) {
+            System.out.println(padString(hit.title, ModWidth) + "by " + hit.author);
         }
+        
+        System.out.println();
+        System.out.println("        Press:");
+        System.out.println("        Up/Down to move selection");
+        System.out.println("        Enter to select");
+        System.out.println("        ESC to quit");
+
+        AnsiConsole.systemUninstall();
     }
 }
