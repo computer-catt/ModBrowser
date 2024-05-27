@@ -3,13 +3,88 @@ package gay;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
+
+import com.github.kwhat.jnativehook.GlobalScreen;
+import com.github.kwhat.jnativehook.NativeHookException;
+import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
+import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
 import com.google.gson.Gson;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.zip.ZipFile;
 import org.fusesource.jansi.AnsiConsole;
 import static org.fusesource.jansi.Ansi.*;
 
-public class Main {
+public class Main implements NativeKeyListener {
+    static String beginText;
+    static String endText;
+
+    static int currentIndex = 0;
+    static List<String> items;
+
+    public Main() {
+        AnsiConsole.systemInstall();
+        // Disable logging for JNativeHook
+        Logger logger = Logger.getLogger(GlobalScreen.class.getPackage().getName());
+        logger.setLevel(Level.OFF);
+        logger.setUseParentHandlers(false);
+
+        try {
+            GlobalScreen.registerNativeHook();
+        } catch (NativeHookException e) {
+            System.err.println("There was a problem registering the native hook.");
+            System.err.println(e.getMessage());
+            System.exit(1);
+        }
+
+        GlobalScreen.addNativeKeyListener(this);
+
+        // Initial display
+        displayItems();
+    }
+
+    private void displayItems() {
+        System.out.println(beginText);
+        for (int i = 0; i < items.toArray().length; i++) {
+            if (i == currentIndex) {
+                System.out.println(ansi().fgBlack().bg(Color.WHITE).a(items.toArray()[i]).reset());
+            } else {
+                System.out.println(items.toArray()[i]);
+            }
+        }
+        System.out.println(endText);
+    }
+
+    @Override
+    public void nativeKeyPressed(NativeKeyEvent e) {
+        if (e.getKeyCode() == NativeKeyEvent.VC_ESCAPE) {
+            try {
+                GlobalScreen.unregisterNativeHook();
+            } catch (NativeHookException nativeHookException) {
+                nativeHookException.printStackTrace();
+            }
+        }
+        else if (e.getKeyCode() == NativeKeyEvent.VC_UP) {
+            if (currentIndex > 0) {
+                currentIndex--;
+                clearScreen();
+                displayItems();
+            }
+        } else if (e.getKeyCode() == NativeKeyEvent.VC_DOWN) {
+            if (currentIndex < items.toArray().length - 1) {
+                currentIndex++;
+                clearScreen();
+                displayItems();
+            }
+        } else if (e.getKeyCode() == NativeKeyEvent.VC_ENTER) {
+            System.out.println("ENTERPRESSED");
+        }
+    }
+    
     public static void clearScreen() {
         System.out.print(ansi().eraseScreen().cursor(0, 0));
         System.out.flush();
@@ -33,10 +108,10 @@ public class Main {
 
         String jarLocation;
         while (true) {
-            //clearScreen();
+            clearScreen();
             System.out.println("Server jar location:");
             jarLocation = scanner.nextLine().trim();
-
+            
             if (jarLocation.startsWith("\"")) {
                 jarLocation = jarLocation.substring(1, jarLocation.length() - 1);
             }
@@ -101,21 +176,27 @@ public class Main {
         SearchResult result = new Gson().fromJson(responseText, SearchResult.class);
         
         clearScreen();
-        String beginText = modLoader + "  :  " + version + "\n" + "Search query: " + searchquery;
+        beginText = modLoader + "  :  " + version + "\n" + "Search query: " + searchquery + "\n";
         System.out.println(beginText);
         int ModWidth = 35;
-        System.out.println();
-        System.out.println(ansi().fgBlack().bg(Color.WHITE).a("Found " + result.total_hits + " results").reset());
-        for (Hit hit : result.hits) {
-            System.out.println(padString(hit.title, ModWidth) + "by " + hit.author);
-        }
         
-        System.out.println();
-        System.out.println("        Press:");
-        System.out.println("        Up/Down to move selection");
-        System.out.println("        Enter to select");
-        System.out.println("        ESC to quit");
+        
+        currentIndex = 0;
+        items = new ArrayList<>();
+        items.add("Found " + result.total_hits + " results");
+        for (Hit hit : result.hits)
+            items.add(padString(hit.title, ModWidth) + "by " + hit.author);
+        
+        endText = """
+                                
+                                Press:
+                                Up/Down to move selection
+                                Enter to select
+                                ESC to quit
+                        """;
 
+        new Main();
+        System.out.println("meow!");
         AnsiConsole.systemUninstall();
     }
 }
