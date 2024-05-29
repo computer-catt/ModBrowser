@@ -93,14 +93,13 @@ public class Main implements NativeKeyListener {
                 if (!inputstring.isEmpty()) {
                     inputstring = inputstring.substring(0, inputstring.length() - 1);
                 }
-            } 
-            else
+            } else
                 inputstring += NativeKeyEvent.getKeyText(e.getKeyCode()).toLowerCase();
-            
+
             System.out.println(inputstring);
             return;
         }
-        
+
         if (e.getKeyCode() == NativeKeyEvent.VC_ESCAPE) {
             if (page.equals(Page.ModDownloader)) {
                 MainPage();
@@ -111,8 +110,7 @@ public class Main implements NativeKeyListener {
                     throw new RuntimeException(ex);
                 }
             }
-        }
-        else if (e.getKeyCode() == NativeKeyEvent.VC_UP) {
+        } else if (e.getKeyCode() == NativeKeyEvent.VC_UP) {
             if (currentIndex > 0) {
                 currentIndex--;
                 displayItems();
@@ -123,23 +121,35 @@ public class Main implements NativeKeyListener {
                 displayItems();
             }
         } else if (e.getKeyCode() == NativeKeyEvent.VC_ENTER) {
+            String currentitem = items.get(currentIndex).trim();
+            System.out.println(currentitem);
             if (page.equals(Page.Main)) {
-                String currentitem = items.get(currentIndex).trim();
-                System.out.println(currentitem);
-                
                 if (currentitem.equals("Download mods")) {
                     try {
                         ModDownloader();
                     } catch (IOException ex) {
                         throw new RuntimeException(ex);
                     }
-                }
-                else if (currentitem.equals("Quit program")) {
+                } else if (currentitem.equals("Quit program")) {
                     try {
                         GlobalScreen.unregisterNativeHook();
                     } catch (NativeHookException ex) {
                         throw new RuntimeException(ex);
                     }
+                }
+            } else if (page.equals(Page.ModDownloader)) {
+                String modid = (String)ProjectIDS.toArray()[currentIndex - 1];
+                System.out.println(modid);
+                try {
+                    ExpandModTab(modid);
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
+            } else if (page.equals(Page.ExpandedModTab)) {
+                switch (currentitem) {
+                    case "Download mod" -> System.out.println("download");
+                    case "Visit mod page" -> System.out.println("mod page visit");
+                    case "Return" -> MainPage();
                 }
             }
         }
@@ -161,6 +171,36 @@ public class Main implements NativeKeyListener {
             sb.append(' ');
 
         return sb.toString();
+    }
+    
+    static void ExpandModTab(String ProjectID) throws IOException {
+        page = Page.ExpandedModTab;
+        clearScreen();
+        URLConnection connection = new URL("https://api.modrinth.com/v2/project/" + ProjectID).openConnection();
+        connection.setRequestProperty("Accept-Charset", "UTF-8");
+        InputStream response = connection.getInputStream();
+        String responseText = new String(response.readAllBytes(), StandardCharsets.UTF_8);
+        response.close();
+        ProjectIdResult result = new Gson().fromJson(responseText, ProjectIdResult.class);
+
+        beginText =
+                    result.title + "\n\n" +
+                    "support:\nServer:" + result.server_side + "\n" +
+                        "Client : " + result.client_side + "\n" +
+                        result.description + "\n" +
+                        "Published date: " + result.published + "\n" +
+                        "Downloads: " + result.downloads + "\n" +
+                        "Followers: " + result.followers + "\n" +
+                        "categories: " + String.join(", ", result.categories) + "\n" +
+                        "Loaders: " + String.join(", ", result.loaders) + "\n";
+
+        items = new ArrayList<>();
+        items.add("Download mod");
+        items.add("Visit mod page");
+        items.add("Return");
+        currentIndex = 0;
+        endText = "";
+        displayItems();
     }
     
     static void FetchInfo() throws IOException {
@@ -240,6 +280,7 @@ public class Main implements NativeKeyListener {
     }
     
     static boolean moddownloaderrequestingstring;
+    static List<String> ProjectIDS;
     static void ModDownloader() throws IOException {
         beginText = "What mod are you looking for?:";
         if (!moddownloaderrequestingstring) {
@@ -268,14 +309,15 @@ public class Main implements NativeKeyListener {
         beginText = modLoader + "  :  " + version + "\n" + "Search query: " + searchquery + "\n";
         System.out.println(beginText);
         int ModWidth = 35;
-
-
+        
         currentIndex = 0;
         items = new ArrayList<>();
+        ProjectIDS = new ArrayList<>();
         items.add("Found " + result.total_hits + " results");
-        for (Hit hit : result.hits)
+        for (Hit hit : result.hits) {
+            ProjectIDS.add(hit.project_id);
             items.add(padString(hit.title, ModWidth) + "by " + hit.author);
-
+        }
         endText = """
                         
                                 Press:

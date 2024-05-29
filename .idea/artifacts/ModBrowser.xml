@@ -1,15 +1,15 @@
 <component name="ArtifactManager">
   <artifact type="jar" name="ModBrowser">
     <output-path>$PROJECT_DIR$/out/artifacts/ModBrowser</output-path>
-    <root id="archive" name="ModBrowser.jar">
+    <root id="archive" name="ModBrowser.main.jar">
       <element id="directory" name="META-INF">
         <element id="file-copy" path="$PROJECT_DIR$/META-INF/MANIFEST.MF" />
       </element>
       <element id="module-output" name="ModBrowser.main" />
-      <element id="extracted-dir" path="$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.github.kwhat/jnativehook/2.2.2/183dd1fb8927b008761802bb402629d5749b15d0/jnativehook-2.2.2.jar" path-in-jar="/" />
-      <element id="extracted-dir" path="$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.google.errorprone/error_prone_annotations/2.27.0/91b2c29d8a6148b5e2e4930f070d4840e2e48e34/error_prone_annotations-2.27.0.jar" path-in-jar="/" />
       <element id="extracted-dir" path="$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.fusesource.jansi/jansi/2.3.3/64fda85e12788a194f374fd49e8f197b29c4f176/jansi-2.3.3.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.google.errorprone/error_prone_annotations/2.27.0/91b2c29d8a6148b5e2e4930f070d4840e2e48e34/error_prone_annotations-2.27.0.jar" path-in-jar="/" />
       <element id="extracted-dir" path="$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.google.code.gson/gson/2.11.0/527175ca6d81050b53bdd4c457a6d6e017626b0e/gson-2.11.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.github.kwhat/jnativehook/2.2.2/183dd1fb8927b008761802bb402629d5749b15d0/jnativehook-2.2.2.jar" path-in-jar="/" />
     </root>
   </artifact>
 </component>
