@@ -1,7 +1,7 @@
 <component name="ArtifactManager">
-  <artifact type="jar" name="ModBrowser.main:jar">
-    <output-path>$PROJECT_DIR$/out/artifacts/ModBrowser_main_jar</output-path>
-    <root id="archive" name="ModBrowser.main.jar">
+  <artifact type="jar" name="ModBrowser">
+    <output-path>$PROJECT_DIR$/out/artifacts/ModBrowser</output-path>
+    <root id="archive" name="ModBrowser.jar">
       <element id="directory" name="META-INF">
         <element id="file-copy" path="$PROJECT_DIR$/META-INF/MANIFEST.MF" />
       </element>

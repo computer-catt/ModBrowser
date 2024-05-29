@@ -20,14 +20,27 @@ import org.fusesource.jansi.AnsiConsole;
 import static org.fusesource.jansi.Ansi.*;
 
 public class Main implements NativeKeyListener {
-    static String beginText;
-    static String endText;
-
+    
+    enum Page{
+        Main,
+        ModDownloader,
+        ExpandedModTab
+    }
+    static Page page;
+    
     static int currentIndex = 0;
+    
+    static String beginText;
     static List<String> items;
-
+    static String endText;
+    
+    static String modLoader;
+    static String version;
+    
+    static boolean inputting;
+    static String inputstring;
+    
     public Main() {
-        AnsiConsole.systemInstall();
         // Disable logging for JNativeHook
         Logger logger = Logger.getLogger(GlobalScreen.class.getPackage().getName());
         logger.setLevel(Level.OFF);
@@ -40,50 +53,98 @@ public class Main implements NativeKeyListener {
             System.err.println(e.getMessage());
             System.exit(1);
         }
-
+        
         GlobalScreen.addNativeKeyListener(this);
-
-        // Initial display
         displayItems();
     }
 
-    private void displayItems() {
-        System.out.println(beginText);
+    static void displayItems() {
+        StringBuilder Buffer;
+        Buffer = new StringBuilder(beginText + "\n");
         for (int i = 0; i < items.toArray().length; i++) {
             if (i == currentIndex) {
-                System.out.println(ansi().fgBlack().bg(Color.WHITE).a(items.toArray()[i]).reset());
+                Buffer.append(ansi().fgBlack().bg(Color.WHITE).a(items.toArray()[i]).reset().toString()).append("\n");
             } else {
-                System.out.println(items.toArray()[i]);
+                Buffer.append(items.toArray()[i]).append("\n");
             }
         }
-        System.out.println(endText);
+        Buffer.append(endText).append("\n");
+        clearScreen();
+        System.out.println(Buffer);
     }
 
     @Override
     public void nativeKeyPressed(NativeKeyEvent e) {
+        if (inputting) {
+            if (e.getKeyCode() == NativeKeyEvent.VC_ENTER) {
+                inputting = false;
+                if (moddownloaderrequestingstring) {
+                    try {
+                        ModDownloader();
+                    } catch (IOException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }
+                return;
+            }
+            clearScreen();
+            System.out.println(beginText);
+            if (e.getKeyCode() == NativeKeyEvent.VC_BACKSPACE) {
+                if (!inputstring.isEmpty()) {
+                    inputstring = inputstring.substring(0, inputstring.length() - 1);
+                }
+            } 
+            else
+                inputstring += NativeKeyEvent.getKeyText(e.getKeyCode()).toLowerCase();
+            
+            System.out.println(inputstring);
+            return;
+        }
+        
         if (e.getKeyCode() == NativeKeyEvent.VC_ESCAPE) {
-            try {
-                GlobalScreen.unregisterNativeHook();
-            } catch (NativeHookException nativeHookException) {
-                nativeHookException.printStackTrace();
+            if (page.equals(Page.ModDownloader)) {
+                MainPage();
+            } else if (page.equals(Page.ExpandedModTab)) {
+                try {
+                    ModDownloader();
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
             }
         }
         else if (e.getKeyCode() == NativeKeyEvent.VC_UP) {
             if (currentIndex > 0) {
                 currentIndex--;
-                clearScreen();
                 displayItems();
             }
         } else if (e.getKeyCode() == NativeKeyEvent.VC_DOWN) {
             if (currentIndex < items.toArray().length - 1) {
                 currentIndex++;
-                clearScreen();
                 displayItems();
             }
         } else if (e.getKeyCode() == NativeKeyEvent.VC_ENTER) {
-            System.out.println("ENTERPRESSED");
+            if (page.equals(Page.Main)) {
+                String currentitem = items.get(currentIndex).trim();
+                System.out.println(currentitem);
+                
+                if (currentitem.equals("Download mods")) {
+                    try {
+                        ModDownloader();
+                    } catch (IOException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }
+                else if (currentitem.equals("Quit program")) {
+                    try {
+                        GlobalScreen.unregisterNativeHook();
+                    } catch (NativeHookException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }
+            }
         }
     }
+    
     
     public static void clearScreen() {
         System.out.print(ansi().eraseScreen().cursor(0, 0));
@@ -101,9 +162,8 @@ public class Main implements NativeKeyListener {
 
         return sb.toString();
     }
-
-    public static void main(String[] args) throws IOException {
-        AnsiConsole.systemInstall();
+    
+    static void FetchInfo() throws IOException {
         Scanner scanner = new Scanner(System.in);
 
         String jarLocation;
@@ -111,7 +171,7 @@ public class Main implements NativeKeyListener {
             clearScreen();
             System.out.println("Server jar location:");
             jarLocation = scanner.nextLine().trim();
-            
+
             if (jarLocation.startsWith("\"")) {
                 jarLocation = jarLocation.substring(1, jarLocation.length() - 1);
             }
@@ -121,52 +181,81 @@ public class Main implements NativeKeyListener {
             } else break;
         }
 
-        var ServerJarArchive = new ZipFile(jarLocation);
+        try (var ServerJarArchive = new ZipFile(jarLocation)) {
+            //get modloader
+            var modLoaderInputStream = ServerJarArchive.getInputStream(ServerJarArchive.getEntry("META-INF/MANIFEST.MF"));
+            modLoader = new String(modLoaderInputStream.readAllBytes(), StandardCharsets.UTF_8);
 
-        //get modloader
-        var modLoaderInputStream = ServerJarArchive.getInputStream(ServerJarArchive.getEntry("META-INF/MANIFEST.MF"));
-        String modLoader = new String(modLoaderInputStream.readAllBytes(), StandardCharsets.UTF_8);
+            for (String line : modLoader.split("\n"))
+                if (line.startsWith("Main-Class: "))
+                    modLoader = line.replace("Main-Class: ", "").trim();
 
-        for (String line : modLoader.split("\n"))
-            if (line.startsWith("Main-Class: "))
-                modLoader = line.replace("Main-Class: ", "").trim();
+            System.out.println("Main class: " + modLoader);
 
-        modLoader = switch (modLoader) {
-            case "net.fabricmc.installer.ServerLauncher" -> "fabric";
-            case "io.papermc.paperclip.Main" -> "paper";
-            case "net.minecraftforge.bootstrap.shim.Main" -> "forge";
-            default -> "Could Not Find Mod Loader\nPlease use purpur/Fabric/Forge";
-        };
-        System.out.println("ModLoader: " + modLoader);
+            modLoader = switch (modLoader) {
+                case "net.fabricmc.installer.ServerLauncher" -> "fabric";
+                case "io.papermc.paperclip.Main" -> "paper";
+                case "net.minecraftforge.bootstrap.shim.Main" -> "forge";
+                default -> "Could Not Find Mod Loader\nPlease use purpur/Fabric/Forge";
+            };
+            System.out.println("ModLoader: " + modLoader);
 
-        //Version finder\
-        String version = "";
-        switch (modLoader) {
-            case "paper" -> {
-                InputStream stream = ServerJarArchive.getInputStream(ServerJarArchive.getEntry("version.json"));
-                version = new Gson().fromJson(new String(stream.readAllBytes(), StandardCharsets.UTF_8), Version.class).id;
+            //Version finder\
+            version = "";
+            switch (modLoader) {
+                case "paper" -> {
+                    InputStream stream = ServerJarArchive.getInputStream(ServerJarArchive.getEntry("version.json"));
+                    version = new Gson().fromJson(new String(stream.readAllBytes(), StandardCharsets.UTF_8), Version.class).id;
 
-            }
-            case "fabric" -> {
-                InputStream stream = ServerJarArchive.getInputStream(ServerJarArchive.getEntry("install.properties"));
-                String fabricFileText = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
-                for (String line : fabricFileText.split("\n"))
-                    if (line.startsWith("game-version="))
-                        version = line.replace("game-version=", "").trim();
+                }
+                case "fabric" -> {
+                    InputStream stream = ServerJarArchive.getInputStream(ServerJarArchive.getEntry("install.properties"));
+                    String fabricFileText = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+                    for (String line : fabricFileText.split("\n"))
+                        if (line.startsWith("game-version="))
+                            version = line.replace("game-version=", "").trim();
 
-            }
-            case "forge" -> System.out.println("You are using Forge Mod Loader");
-            default -> {
-                System.out.println("Minecraft version cannot be automatically determined\nPlease enter the Minecraft version:");
-                version = scanner.nextLine();
+                }
+                case "forge" -> System.out.println("You are using Forge Mod Loader");
+                default -> {
+                    System.out.println("Minecraft version cannot be automatically determined\nPlease enter the Minecraft version:");
+                    version = scanner.nextLine();
+                }
             }
         }
         System.out.println("version: " + version);
+    }
+    
+    static void MainPage(){
+        beginText = "Welcome to ModBrowser!\nYou are using " + modLoader + " (Mod)Loader On " + version + "\n";
+        items = new ArrayList<>();
+        items.add("Start server");
+        items.add("Download mods");
+        items.add("Quit program");
+        endText = "";
+        page = Page.Main;
+        clearScreen();
+        currentIndex = 0;
+        displayItems();
+    }
+    
+    static boolean moddownloaderrequestingstring;
+    static void ModDownloader() throws IOException {
+        beginText = "What mod are you looking for?:";
+        if (!moddownloaderrequestingstring) {
+            inputstring = "";
+            moddownloaderrequestingstring = true;
+            inputting = true;
+            currentIndex = 0;
+            clearScreen();
+            System.out.println(beginText);
+            return;
+        }
+        moddownloaderrequestingstring = false;
         
         //Mod Downloading portion
-        System.out.println("What mod are you looking for?:");
-        String searchquery = scanner.nextLine().trim();
-        URLConnection connection = new URL("https://api.modrinth.com/v2/search?limit=20&query=" +  searchquery+
+        String searchquery = inputstring.trim();
+        URLConnection connection = new URL("https://api.modrinth.com/v2/search?limit=20&query=" +  searchquery +
                 "&facets=" + URLEncoder.encode("[[\"categories:" + modLoader + "\"],[\"versions:" + version + "\"]]", StandardCharsets.UTF_8))
                 .openConnection();
         connection.setRequestProperty("Accept-Charset", "UTF-8");
@@ -174,29 +263,36 @@ public class Main implements NativeKeyListener {
         String responseText = new String(response.readAllBytes(), StandardCharsets.UTF_8);
         response.close();
         SearchResult result = new Gson().fromJson(responseText, SearchResult.class);
-        
+
         clearScreen();
         beginText = modLoader + "  :  " + version + "\n" + "Search query: " + searchquery + "\n";
         System.out.println(beginText);
         int ModWidth = 35;
-        
-        
+
+
         currentIndex = 0;
         items = new ArrayList<>();
         items.add("Found " + result.total_hits + " results");
         for (Hit hit : result.hits)
             items.add(padString(hit.title, ModWidth) + "by " + hit.author);
-        
+
         endText = """
-                                
+                        
                                 Press:
                                 Up/Down to move selection
                                 Enter to select
                                 ESC to quit
                         """;
-
+        
+        page = Page.ModDownloader;
+        displayItems();
+    }
+    
+    public static void main(String[] args) throws IOException {
+        AnsiConsole.systemInstall();
+        FetchInfo();
+        
+        MainPage();
         new Main();
-        System.out.println("meow!");
-        AnsiConsole.systemUninstall();
     }
 }
